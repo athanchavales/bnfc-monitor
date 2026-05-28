@@ -137,13 +137,21 @@ async function pushToFirebase() {
   isSyncing = true;
   updateSyncBadge('syncing');
   try {
-    // Single atomic write — avoids partial-write races and rule issues
-    await fbWriteAll({
+    const payload = {
       players: JSON.stringify(players),
       records: JSON.stringify(records),
       evals:   JSON.stringify(evals),
-      matches: JSON.stringify(typeof mdMatchHistory !== 'undefined' ? mdMatchHistory : []),
-    });
+      matches: JSON.stringify(mdMatchHistory || []),
+    };
+    // Prefer single atomic write; fall back to sequential writes for old auth.js
+    if (window.bnfc && typeof window.bnfc.dbWriteAll === 'function') {
+      await window.bnfc.dbWriteAll(payload);
+    } else {
+      await fbWrite('players', payload.players);
+      await fbWrite('records', payload.records);
+      await fbWrite('evals',   payload.evals);
+      await fbWrite('matches', payload.matches);
+    }
     syncPending = false;
     updateSyncBadge('ok');
   } catch(e) {
