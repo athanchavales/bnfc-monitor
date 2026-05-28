@@ -1,0 +1,14 @@
+{
+  "name": "BNFC Player Monitor",
+  "short_name": "BNFC Monitor",
+  "description": "Barnet Nightingales FC Player Monitoring 2026/27",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111410",
+  "theme_color": "#111410",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "images/logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "images/logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
