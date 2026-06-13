@@ -1751,7 +1751,10 @@ function renderPlayerEvalDetail(pid) {
         <span>${ev.type} <span class="optional">${formatDate(ev.date)}</span></span>
         <div style="display:flex;gap:8px;align-items:center">
           ${ev.grade ? `<span style="font-size:20px;font-weight:700;color:${p.color}">${ev.grade}</span>` : ''}
-          <button class="action-btn delete" onclick="deleteEval('${pid}', ${i})" style="padding:4px 8px">
+          <button class="action-btn" onclick="openEditEvalModal('${pid}', ${i})" title="Edit evaluation" style="padding:4px 8px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="action-btn delete" onclick="deleteEval('${pid}', ${i})" title="Delete evaluation" style="padding:4px 8px">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
           </button>
         </div>
@@ -1793,12 +1796,14 @@ function renderPlayerEvalDetail(pid) {
 
 // ── Add evaluation modal ──────────────────────────────
 
-let evalAttrs = {};
-let evalPid   = null;
+let evalAttrs    = {};
+let evalPid      = null;
+let evalEditIdx  = null;   // null = new, number = editing existing index
 
 function openAddEvalModal(pid) {
-  evalPid   = pid;
-  evalAttrs = {};
+  evalPid     = pid;
+  evalEditIdx = null;
+  evalAttrs   = {};
   ATTRS.forEach(a => evalAttrs[a.key] = 0);
 
   const p = getPlayer(pid);
@@ -1825,6 +1830,50 @@ function openAddEvalModal(pid) {
         <div class="half-slider-ticks">${[0,1,2,3,4,5].map(n=>`<span>${n}</span>`).join('')}</div>
       </div>
     </div>`).join('');
+
+  document.getElementById('eval-modal').classList.remove('hidden');
+}
+
+function openEditEvalModal(pid, idx) {
+  evalPid     = pid;
+  evalEditIdx = idx;
+  evalAttrs   = {};
+
+  const p  = getPlayer(pid);
+  const ev = getPlayerEvals(pid)[idx];
+  if (!ev) return;
+
+  document.getElementById('eval-modal-title').textContent = 'Edit evaluation — ' + (p?.name || '');
+  document.getElementById('eval-type').value              = ev.type || '';
+  document.getElementById('eval-date').value              = ev.date || '';
+  document.getElementById('eval-grade').value             = ev.grade || '';
+  document.getElementById('eval-position').value          = ev.position || '';
+  document.getElementById('eval-alt-position').value      = ev.altPosition || '';
+  document.getElementById('eval-notes').value             = ev.notes || '';
+  ['s','w','o','t'].forEach(k => {
+    document.getElementById(`eval-swot-${k}`).value = (ev.swot && ev.swot[k]) ? ev.swot[k] : '';
+  });
+
+  // Build attr sliders pre-filled with existing values
+  const grid = document.getElementById('eval-attrs-grid');
+  grid.innerHTML = ATTRS.map(a => {
+    const stored  = ev.attrs?.[a.key] || 0;  // 0–5
+    const rawVal  = Math.round(stored * 2);   // 0–10 slider units
+    return `
+    <div class="attr-log-row">
+      <div class="attr-log-label">${a.label}<span class="pip-val" id="epipval-${a.key}">${stored > 0 ? Number(stored).toFixed(1).replace('.0','') + '/5' : '—'}</span></div>
+      <div class="half-slider-wrap">
+        <input type="range" class="half-slider" id="eslider-${a.key}"
+          min="0" max="10" step="1" value="${rawVal}"
+          oninput="setEvalSlider('${a.key}', this.value)"
+          style="background:linear-gradient(to right, var(--green) ${rawVal * 10}%, var(--border) ${rawVal * 10}%)">
+        <div class="half-slider-ticks">${[0,1,2,3,4,5].map(n=>`<span>${n}</span>`).join('')}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Populate evalAttrs from stored values
+  ATTRS.forEach(a => { evalAttrs[a.key] = ev.attrs?.[a.key] || 0; });
 
   document.getElementById('eval-modal').classList.remove('hidden');
 }
@@ -1858,9 +1907,16 @@ function saveEvaluation() {
 
   if (!date) { alert('Please enter a date.'); return; }
 
-  const entry = { type, date, grade, position: pos, altPosition: altPos, attrs: { ...evalAttrs }, swot, notes, timestamp: Date.now() };
   if (!evals[evalPid]) evals[evalPid] = [];
-  evals[evalPid].push(entry);
+
+  if (evalEditIdx !== null) {
+    // Edit mode — preserve original timestamp, update everything else
+    const original = evals[evalPid][evalEditIdx] || {};
+    evals[evalPid][evalEditIdx] = { type, date, grade, position: pos, altPosition: altPos, attrs: { ...evalAttrs }, swot, notes, timestamp: original.timestamp || Date.now() };
+  } else {
+    // New mode — push a fresh entry
+    evals[evalPid].push({ type, date, grade, position: pos, altPosition: altPos, attrs: { ...evalAttrs }, swot, notes, timestamp: Date.now() });
+  }
 
   saveEvals();
   document.getElementById('eval-modal').classList.add('hidden');
