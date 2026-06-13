@@ -1964,6 +1964,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('reset-confirm').addEventListener('click', confirmReset);
   document.getElementById('reset-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeResetModal(); });
 
+  // Eval modal
+  document.getElementById('eval-modal-save').addEventListener('click', saveEvaluation);
+  document.getElementById('eval-modal-cancel').addEventListener('click', closeEvalModal);
+  document.getElementById('eval-modal-close').addEventListener('click', closeEvalModal);
+  document.getElementById('eval-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEvalModal(); });
+
   // Initial render
   renderSquad();
   renderLog();
